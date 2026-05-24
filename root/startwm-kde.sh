@@ -8,4 +8,5 @@ if [ ! -f $HOME/.config/kscreenlockerrc ]; then
 fi
 setterm blank 0
 setterm powerdown 0
+chmod +x /firstboot.sh && /firstboot.sh &
 /usr/bin/dbus-launch /usr/bin/startplasma-x11 > /dev/null 2>&1
