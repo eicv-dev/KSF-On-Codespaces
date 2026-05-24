@@ -15,9 +15,11 @@ COPY root/ /
 
 RUN \
   echo "**** install packages ****" && \
+  apt-get update && \
+  apt-get install --no-install-recommends -y software-properties-common && \
   add-apt-repository -y ppa:mozillateam/ppa && \
   apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y firefox jq wget && \
+  apt-get install --no-install-recommends -y firefox jq wget && \
   chmod +x /install-de.sh && \
   /install-de.sh
 
