@@ -2,8 +2,8 @@
 
 ## Installation
 1. Create a new "Blank" template Github Codespace at https://github.com/codespaces/.
-2. Run `git clone https://github.com/ko6lvm/KSFOnCodespaces`.
-4. Run `cd KSFOnCodespaces`.
+2. Run `git clone https://github.com/eicv-dev/KSF-On-Codespaces`.
+4. Run `cd KSF-On-Codespaces`.
 5. Run `chmod +x install.sh`.
 6. Run `./install.sh`.
 
