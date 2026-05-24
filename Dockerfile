@@ -15,6 +15,7 @@ COPY root/ /
 
 RUN \
   echo "**** install packages ****" && \
+  rm -f /etc/apt/sources.list.d/nodesource*.list && \
   apt-get update && \
   apt-get install --no-install-recommends -y software-properties-common && \
   add-apt-repository -y ppa:mozillateam/ppa && \
