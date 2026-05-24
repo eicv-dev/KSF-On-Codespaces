@@ -5,5 +5,5 @@ Clone this repo into your codespace, then run:
 ```
 python3 installer.py
 docker build -t ksf-on-codespaces . --no-cache
-./install.sh
+sudo ./install.sh
 ```
