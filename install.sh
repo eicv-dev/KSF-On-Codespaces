@@ -1,12 +1,12 @@
-#!/bin/bash
-set -e
-cd "$(dirname "$0")
-pip install textual
-sleep 2
+#!/bin/sh
+cd "$(dirname "$0")"
+
+sudo pip3 install textual --break-system-packages 2>/dev/null || pip3 install textual
+
 python3 installer.py
 
-sudo apt update
-sudo apt install -y jq
+sudo apt-get update -q
+sudo apt-get install -y jq
 
 docker build -t ksf-on-codespaces . --no-cache
 
