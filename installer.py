@@ -1,108 +1,208 @@
-from textual.app import App, ComposeResult
-from textual.screen import Screen
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Header, SelectionList, Label, Button, Markdown, Select, Static, Switch
+import http.server
+import json
+import base64
+import os
+import threading
+import webbrowser
 
-### JSON Exporter ###
+PORT = 6789
+DONE = threading.Event()
 
-def savejson(json):
-    with open('options.json', 'w') as f:
-        f.write(str(json).replace("'", '"').replace("True", "true").replace("False", "false"))
+def get_banner_b64():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "banner.png")
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return ""
 
-#####################
+HTML = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>KSF On Codespaces Installer</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: #0d0d0d;
+    color: #f0f0f0;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }}
+  img.banner {{
+    max-width: 700px;
+    width: 100%;
+    margin-bottom: 40px;
+    border-radius: 12px;
+  }}
+  h2 {{ color: #cc2222; margin-bottom: 24px; font-size: 1.4rem; }}
+  .grid {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 28px;
+  }}
+  .col h3 {{
+    font-size: 0.95rem;
+    color: #aaa;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }}
+  label {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.95rem;
+  }}
+  label:hover {{ background: #1e1e1e; }}
+  input[type=checkbox] {{ accent-color: #cc2222; width: 16px; height: 16px; }}
+  .de-row {{
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 32px;
+  }}
+  .de-row label {{ display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }}
+  select {{
+    width: 100%;
+    padding: 10px 14px;
+    background: #1a1a1a;
+    color: #f0f0f0;
+    border: 1px solid #333;
+    border-radius: 8px;
+    font-size: 1rem;
+  }}
+  button {{
+    background: #cc2222;
+    color: white;
+    border: none;
+    padding: 16px 60px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background 0.2s;
+  }}
+  button:hover {{ background: #aa1111; }}
+  #done {{
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: #4caf50;
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-top: 40px;
+  }}
+</style>
+</head>
+<body>
+{banner_html}
+<h2>SELECT YOUR OPTIONS</h2>
+<form id="form">
+  <div class="grid">
+    <div class="col">
+      <h3>Default Apps</h3>
+      <label><input type="checkbox" name="defaultapps" value="0" checked> Wine</label>
+      <label><input type="checkbox" name="defaultapps" value="1" checked> Chrome</label>
+      <label><input type="checkbox" name="defaultapps" value="2" checked> Xarchiver</label>
+      <label><input type="checkbox" name="defaultapps" value="3" checked> Discord</label>
+      <label><input type="checkbox" name="defaultapps" value="4" checked> Steam</label>
+      <label><input type="checkbox" name="defaultapps" value="5" checked> Minecraft</label>
+    </div>
+    <div class="col">
+      <h3>Programming</h3>
+      <label><input type="checkbox" name="programming" value="0"> OpenJDK 8 (jre)</label>
+      <label><input type="checkbox" name="programming" value="1"> OpenJDK 17 (jre)</label>
+      <label><input type="checkbox" name="programming" value="2"> VSCodium</label>
+    </div>
+    <div class="col">
+      <h3>Apps</h3>
+      <label><input type="checkbox" name="apps" value="0"> VLC</label>
+      <label><input type="checkbox" name="apps" value="1"> LibreOffice</label>
+      <label><input type="checkbox" name="apps" value="2"> Synaptic</label>
+      <label><input type="checkbox" name="apps" value="3"> AQemu (VMs)</label>
+      <label><input type="checkbox" name="apps" value="4"> TLauncher</label>
+    </div>
+  </div>
+  <div class="de-row">
+    <label for="de">Desktop Environment</label>
+    <select id="de" name="de">
+      <option>KDE Plasma (Heavy)</option>
+      <option>XFCE4 (Lightweight)</option>
+      <option>I3 (Very Lightweight)</option>
+      <option>GNOME 42 (Very Heavy)</option>
+      <option>Cinnamon</option>
+      <option>LXQT</option>
+    </select>
+  </div>
+  <button type="submit">INSTALL NOW</button>
+</form>
+<div id="done">
+  ✓ Options saved! Return to the terminal to continue installation.
+</div>
+<script>
+document.getElementById('form').addEventListener('submit', async function(e) {{
+  e.preventDefault();
+  const fd = new FormData(this);
+  const data = {{
+    defaultapps: fd.getAll('defaultapps').map(Number),
+    programming: fd.getAll('programming').map(Number),
+    apps: fd.getAll('apps').map(Number),
+    enablekvm: true,
+    DE: fd.get('de')
+  }};
+  await fetch('/install', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify(data)}});
+  document.getElementById('form').style.display = 'none';
+  document.getElementById('done').style.display = 'flex';
+}});
+</script>
+</body>
+</html>"""
 
-Head="""
-# KSF On Codespaces Installer
+class Handler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
 
-> KSF On Codespaces (Powered by DesktopOnCodespaces)
+    def do_GET(self):
+        banner_b64 = get_banner_b64()
+        if banner_b64:
+            banner_html = f'<img class="banner" src="data:image/png;base64,{banner_b64}">'
+        else:
+            banner_html = '<h1 style="color:#cc2222;margin-bottom:32px;">KSF On Codespaces</h1>'
+        page = HTML.format(banner_html=banner_html)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.end_headers()
+        self.wfile.write(page.encode())
 
-KSF On Codespaces is a Virtual Machine that...
-* Runs entirely in a web browser
-* Is unblocked
-* Has Windows app support
-* Has audio support
-* Can run games with almost no lag
-* Can Bypass School Network
-* Is very fast
-"""
-InstallHead="""
-# KSF On Codespaces Installer
-"""     
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        data = json.loads(body)
+        with open("options.json", "w") as f:
+            json.dump(data, f)
+        self.send_response(200)
+        self.end_headers()
+        DONE.set()
 
-LINES = ["KDE Plasma (Heavy)", "XFCE4 (Lightweight)", "I3 (Very Lightweight)", "GNOME 42 (Very Heavy)", "Cinnamon", "LXQT"]
-
-class InstallScreen(Screen):
-    CSS_PATH = "installer.tcss"
-
-    def compose(self) -> ComposeResult:
-        yield Header()
-        yield Markdown(InstallHead)
-        yield Horizontal (
-        Vertical (
-         Label("Default Apps (you should keep them)"),
-         SelectionList[int]( 
-            ("Wine", 0, True),
-            ("Chrome", 1, True),
-            ("Xarchiver", 2, True),
-            ("Discord", 3, True),
-            ("Steam", 4, True),
-            ("Minecraft", 5, True),
-            id="defaultapps"
-        ),),
-        Vertical (
-         Label("Programming"),
-         SelectionList[int]( 
-            ("OpenJDK 8 (jre)", 0),
-            ("OpenJDK 17 (jre)", 1),
-            ("VSCodium", 2),
-            id="programming"
-        ),),
-        Vertical (
-         Label("Apps"),
-         SelectionList[int]( 
-            ("VLC", 0),
-            ("LibreOffice", 1),
-            ("Synaptic", 2),
-            ("AQemu (VMs)", 3),
-            ("TLauncher", 4),
-            id="apps"
-        ),),
-        )
-
-        yield Vertical (
-         Horizontal(
-            Label("\nDesktop Environement :"),
-            Select(id="de", value="KDE Plasma (Heavy)", options=((line, line) for line in LINES)),
-        ),)
-        yield Horizontal (
-            Button.error("Back", id="back"),
-            Button.warning("Install NOW", id="in"),
-        )
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "back":
-            app.pop_screen()
-        if event.button.id == "in":
-            data = {"defaultapps": self.query_one("#defaultapps").selected, "programming": self.query_one("#programming").selected, "apps": self.query_one("#apps").selected, "enablekvm": True, "DE": self.query_one("#de").value}
-            savejson(data)
-            app.exit()
-
-class InstallApp(App):
-    CSS_PATH = "installer.tcss"
-
-    def compose(self) -> ComposeResult:
-        yield Header()
-        yield Markdown(Head)
-        
-        yield Vertical (
-            Button.success("Install", id="install"),
-        )
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "cancel":
-            print("")
-        if event.button.id == "install":
-            self.push_screen(InstallScreen())
-            
 if __name__ == "__main__":
-    app = InstallApp()
-    app.run()
-
+    server = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
+    print(f"\n>>> Opening installer in browser on port {PORT}...")
+    print(f">>> If it doesn't open, go to: http://localhost:{PORT}\n")
+    threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+    while not DONE.is_set():
+        server.handle_request()
+    server.server_close()
+    print(">>> Options saved. Continuing installation...\n")
