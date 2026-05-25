@@ -1,0 +1,2 @@
+docker rm -f KSFOnCodespaces
+docker run -d --name=KSFOnCodespaces -e PUID=1000 -e PGID=1000 --device=/dev/kvm --security-opt seccomp=unconfined -e TZ=Etc/UTC -e SUBFOLDER=/ -e TITLE="KSF On Codespaces" -p 3000:3000 --shm-size="2gb" -v $(pwd)/Save:/config --restart unless-stopped ksf-on-codespaces
